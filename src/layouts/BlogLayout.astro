@@ -1,0 +1,410 @@
+---
+// src/layouts/BlogLayout.astro
+
+export interface Props {
+  frontmatter: {
+    title: string;
+    date: string;
+    category?: string;
+    description?: string;
+  };
+  rawContent?: () => string;
+}
+
+const { title, date, category, description } = Astro.props.frontmatter;
+const pageDescription = description ?? `${title} — Super Hiko14のブログ記事`;
+const canonicalUrl = new URL(Astro.url.pathname, Astro.site ?? 'https://super-hiko14.me').href;
+
+// 読了時間（日本語 約500字/分）
+const rawText = Astro.props.rawContent?.() ?? '';
+const readingMinutes = Math.max(1, Math.ceil(
+  rawText.replace(/[\s\n]/g, '').length / 500
+));
+
+// 前後のブログ記事を自動取得
+interface PostFM { title: string; date: string; category?: string; }
+const postModules = import.meta.glob<{ frontmatter: PostFM }>(
+  '../pages/blog/*.md',
+  { eager: true }
+);
+
+const sorted = Object.entries(postModules)
+  .filter(([, mod]) => mod.frontmatter?.title)
+  .map(([path, mod]) => {
+    const match = path.match(/\/([^/]+)\.md$/);
+    const slug = match?.[1] ?? '';
+    return { frontmatter: mod.frontmatter, url: `/blog/${slug}/` };
+  })
+  .sort((a, b) => {
+    const dA = (a.frontmatter.date || '').replace(/\./g, '-');
+    const dB = (b.frontmatter.date || '').replace(/\./g, '-');
+    return dA < dB ? 1 : dA > dB ? -1 : 0;
+  });
+
+const currentPath = Astro.url.pathname.replace(/\/$/, '');
+const idx = sorted.findIndex(p => p.url.replace(/\/$/, '') === currentPath);
+const prevPost = idx >= 0 && idx < sorted.length - 1 ? sorted[idx + 1] : null;
+const nextPost = idx > 0 ? sorted[idx - 1] : null;
+---
+
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title} — Blog — Super Hiko14.me</title>
+    <meta name="description" content={pageDescription}>
+    <link rel="canonical" href={canonicalUrl}>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content={title}>
+    <meta property="og:description" content={pageDescription}>
+    <meta property="og:url" content={canonicalUrl}>
+    <meta property="og:site_name" content="Super Hiko14.me">
+    <meta name="twitter:card" content="summary">
+    <link rel="icon" href="https://super-hiko14.me/favicon.ico">
+    <link rel="icon" type="image/png" href="https://super-hiko14.me/favicon.png">
+    <link rel="stylesheet" href="/main.css">
+    <script src="/main.js" is:inline></script>
+  </head>
+
+  <body>
+    <div class="blog-reading-progress" id="blog-reading-progress" aria-hidden="true"></div>
+    <!-- ナビゲーション -->
+    <nav class="site-nav" aria-label="サイトナビゲーション">
+      <button class="site-nav-toggle" aria-label="メニューを開く" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="site-nav-drawer" aria-hidden="true">
+        <ul></ul>
+      </div>
+    </nav>
+
+    <main class="container blog-page">
+
+      <!-- 通常の .box より広い専用ボックス -->
+      <div class="box blog-post-box">
+
+        <!-- Blog一覧へ戻るリンク（本文カラムと同じ幅・位置に揃える） -->
+        <div class="blog-post-topbar">
+          <a href="/blog/" class="blog-back-link" aria-label="Blog 一覧へ戻る">
+            <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none">
+              <path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Blog 一覧へ
+          </a>
+        </div>
+
+        <!-- 記事ヘッダー -->
+        <div class="blog-post-header">
+          <div class="blog-post-meta">
+            {category && <span class="blog-item-category">{category}</span>}
+            <span class="blog-item-date">{date}</span>
+            <span class="blog-reading-time" aria-label={`読了時間 約${readingMinutes}分`}>
+              <svg aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/>
+                <path d="M12 7v5l3 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              約{readingMinutes}分
+            </span>
+          </div>
+          <h1 class="blog-post-title">{title}</h1>
+        </div>
+
+        <!-- 本文 + ToC の 2 カラム -->
+        <div class="blog-post-layout">
+
+          <!-- 記事本文 -->
+          <div class="blog-post-main">
+            <article class="blog-content" id="blog-content">
+              <hr class="blog-content-divider" />
+              <slot />
+            </article>
+
+            <div class="blog-post-footer">
+              <a href="/blog/" class="blog-back-link" aria-label="Blog 一覧へ戻る">
+                <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none">
+                  <path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Blog 一覧へ
+              </a>
+            </div>
+
+            <!-- 前後の記事ナビ -->
+            {(prevPost || nextPost) && (
+              <nav class="blog-sibling-nav" aria-label="前後の記事">
+                {prevPost && (
+                  <a href={prevPost.url} class="blog-sibling blog-sibling--prev">
+                    <span class="blog-sibling-dir">
+                      <svg aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="none">
+                        <path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                      前の記事
+                    </span>
+                    <span class="blog-sibling-title">{prevPost.frontmatter.title}</span>
+                    <span class="blog-sibling-date">{prevPost.frontmatter.date}</span>
+                  </a>
+                )}
+                {nextPost && (
+                  <a href={nextPost.url} class="blog-sibling blog-sibling--next">
+                    <span class="blog-sibling-dir">
+                      次の記事
+                      <svg aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="none">
+                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </span>
+                    <span class="blog-sibling-title">{nextPost.frontmatter.title}</span>
+                    <span class="blog-sibling-date">{nextPost.frontmatter.date}</span>
+                  </a>
+                )}
+              </nav>
+            )}
+          </div>
+
+          <!-- ToC サイドバー（PC） -->
+          <aside class="toc-sidebar" aria-label="目次">
+            <p class="toc-header-label">目次</p>
+            <ul class="toc-list" id="toc-list-pc"></ul>
+          </aside>
+
+        </div>
+      </div>
+
+    <div class="box">
+      <div class="footer">
+        <div class="footer-top">
+          <nav class="footer-nav" aria-label="フッターナビゲーション">
+            <div class="footer-nav-group">
+              <span class="footer-nav-label">法的情報</span>
+              <a href="https://super-hiko14.com/terms/">利用規約</a>
+              <a href="https://super-hiko14.com/privacypolicy">プライバシーポリシー</a>
+            </div>
+          </nav>
+          <div class="footer-controls">
+            <button class="theme-toggle" aria-label="テーマ切り替え">
+              <img src="https://super-hiko14.com/sozai/images/moon.webp" alt="ダークモード" class="theme-icon-light">
+              <img src="https://super-hiko14.com/sozai/images/sun.webp" alt="ライトモード" class="theme-icon-dark">
+            </button>
+            <button class="scroll-to-top" aria-label="トップへ戻る">
+              <img src="https://super-hiko14.com/sozai/images/top_light.webp" alt="トップへ" class="scroll-icon-light">
+              <img src="https://super-hiko14.com/sozai/images/top_dark.webp" alt="トップへ" class="scroll-icon-dark">
+            </button>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <p>© 2026 Super Hiko14 All rights reserved.</p>
+        </div>
+        <div class="footer-credit" aria-label="Created by Super Hiko14">
+          <div class="footer-credit-label">Created by</div>
+          <div class="footer-credit-main">Super Hiko14<span class="footer-credit-dot">.</span></div>
+        </div>
+      </div>
+    </div>
+    </main>
+
+    <!-- スマホ用 ToC ボタン（フローティングピル） -->
+    <button class="toc-mobile-btn" id="toc-mobile-btn" aria-label="目次を開く">
+      <span class="toc-mobile-icon" aria-hidden="true">☰</span>
+      目次
+    </button>
+
+    <!-- スクリム -->
+    <div class="toc-scrim" id="toc-scrim"></div>
+
+    <!-- スマホ用サイドドロワー（右から） -->
+    <div class="toc-panel" id="toc-panel" role="dialog" aria-modal="true" aria-label="目次">
+      <div class="toc-panel-header">
+        <p class="toc-panel-title">目次</p>
+        <button class="toc-panel-close" id="toc-panel-close" aria-label="閉じる">✕</button>
+      </div>
+      <ul class="toc-list" id="toc-list-mobile"></ul>
+    </div>
+
+    <script>
+      // ---- 1. 見出し収集 ----
+      const content = document.getElementById('blog-content')!;
+      const headings = Array.from(
+        content.querySelectorAll<HTMLHeadingElement>('h1, h2, h3, h4')
+      );
+
+      const ICON_HASH = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M9.5 3L7 21M17 3L14.5 21M4 8.5H20M3 15.5H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+      const ICON_CHECK = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="currentColor" fill-opacity="0.15"/><path d="M7 12.5L10.2 15.7L17 8.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+      headings.forEach((h, i) => {
+        if (!h.id) h.id = `toc-h-${i}`;
+
+        // # アンカーリンク（ホバーで表示・クリックでURLコピー）
+        const anchor = document.createElement('a');
+        anchor.className = 'heading-anchor';
+        anchor.href = `#${h.id}`;
+        anchor.innerHTML = ICON_HASH;
+        anchor.setAttribute('aria-hidden', 'true');
+        anchor.setAttribute('tabindex', '-1');
+        anchor.addEventListener('click', async (e) => {
+          e.preventDefault();
+          const url = `${location.origin}${location.pathname}#${h.id}`;
+          try {
+            await navigator.clipboard.writeText(url);
+            anchor.innerHTML = ICON_CHECK;
+            anchor.classList.add('is-copied');
+            setTimeout(() => {
+              anchor.innerHTML = ICON_HASH;
+              anchor.classList.remove('is-copied');
+            }, 1500);
+          } catch {}
+        });
+        h.insertBefore(anchor, h.firstChild);
+      });
+
+      // ---- 2. ToC リンク生成 ----
+      function buildLinks(listEl: HTMLElement, onItemClick?: () => void) {
+        headings.forEach((h) => {
+          const level = parseInt(h.tagName[1]); // 1〜4
+          const li = document.createElement('li');
+          li.className = 'toc-item';
+
+          const a = document.createElement('a');
+          a.className = 'toc-link';
+          a.href = `#${h.id}`;
+          a.dataset.id = h.id;
+          a.dataset.level = String(level);
+
+          // テキスト（アンカー要素を除いた見出しテキストを取得）
+          const span = document.createElement('span');
+          const anchorEl = h.querySelector('.heading-anchor');
+          const cloned = h.cloneNode(true) as HTMLElement;
+          cloned.querySelector('.heading-anchor')?.remove();
+          span.textContent = cloned.textContent?.trim() ?? '';
+          a.appendChild(span);
+
+          // スマホパネル用：矢印アイコンを追加
+          if (listEl.id === 'toc-list-mobile') {
+            const arrow = document.createElement('span');
+            arrow.className = 'toc-link-arrow';
+            arrow.setAttribute('aria-hidden', 'true');
+            arrow.textContent = '›';
+            a.appendChild(arrow);
+          }
+
+          a.addEventListener('click', (e) => {
+            e.preventDefault();
+            document.getElementById(h.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            onItemClick?.();
+          });
+
+          li.appendChild(a);
+          listEl.appendChild(li);
+        });
+      }
+
+      buildLinks(document.getElementById('toc-list-pc')!);
+      buildLinks(document.getElementById('toc-list-mobile')!, () => closePanel());
+
+      // ---- 3. 見出し＋本文が画面に映っているセクションをアクティブにする ----
+      const allLinks = document.querySelectorAll<HTMLElement>('.toc-link');
+
+      function updateActiveToC() {
+        const scrollY = window.scrollY;
+        const viewportBottom = scrollY + window.innerHeight;
+
+        const activeIds = new Set<string>();
+
+        for (let i = 0; i < headings.length; i++) {
+          const headingAbsTop = headings[i].getBoundingClientRect().top + scrollY;
+          const nextAbsTop =
+            i + 1 < headings.length
+              ? headings[i + 1].getBoundingClientRect().top + scrollY
+              : document.documentElement.scrollHeight;
+
+          if (headingAbsTop < viewportBottom && nextAbsTop > scrollY) {
+            activeIds.add(headings[i].id);
+          }
+        }
+
+        if (activeIds.size === 0 && headings.length > 0) {
+          activeIds.add(headings[0].id);
+        }
+
+        allLinks.forEach((link) => {
+          if (link.dataset.id && activeIds.has(link.dataset.id)) {
+            link.classList.add('is-active');
+          } else {
+            link.classList.remove('is-active');
+          }
+        });
+      }
+
+      window.addEventListener('scroll', updateActiveToC, { passive: true });
+      window.addEventListener('resize', updateActiveToC, { passive: true });
+      updateActiveToC();
+
+      // ---- 4. スマホ パネル開閉 ----
+      const mobileBtn = document.getElementById('toc-mobile-btn')!;
+      const panel     = document.getElementById('toc-panel')!;
+      const scrim     = document.getElementById('toc-scrim')!;
+      const closeBtn  = document.getElementById('toc-panel-close')!;
+
+      function openPanel() {
+        scrim.style.display = 'block';
+        document.body.style.overflow = 'hidden';
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            panel.classList.add('is-open');
+            scrim.classList.add('is-visible');
+          });
+        });
+      }
+
+      function closePanel() {
+        panel.classList.remove('is-open');
+        scrim.classList.remove('is-visible');
+        document.body.style.overflow = '';
+        panel.addEventListener('transitionend', () => {
+          scrim.style.display = '';
+        }, { once: true });
+      }
+
+      mobileBtn.addEventListener('click', openPanel);
+      closeBtn.addEventListener('click', closePanel);
+      scrim.addEventListener('click', closePanel);
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closePanel();
+      });
+
+      // ---- 5. コードブロック コピーボタン ----
+      const ICON_COPY = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M5 15h-.5A1.5 1.5 0 0 1 3 13.5v-9A1.5 1.5 0 0 1 4.5 3h9A1.5 1.5 0 0 1 15 4.5V5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`;
+
+      content.querySelectorAll<HTMLPreElement>('pre').forEach((pre) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'code-copy-btn';
+        btn.setAttribute('aria-label', 'コードをコピー');
+        btn.innerHTML = ICON_COPY;
+        btn.addEventListener('click', async () => {
+          const code = pre.querySelector('code');
+          try {
+            await navigator.clipboard.writeText((code ?? pre).innerText.replace(/\n$/, ''));
+            btn.innerHTML = ICON_CHECK;
+            btn.classList.add('is-copied');
+            setTimeout(() => {
+              btn.innerHTML = ICON_COPY;
+              btn.classList.remove('is-copied');
+            }, 1500);
+          } catch {}
+        });
+        pre.appendChild(btn);
+      });
+
+      // ---- 6. 読書プログレスバー ----
+      const progressBar = document.getElementById('blog-reading-progress');
+      if (progressBar) {
+        function updateProgress() {
+          const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+          const pct = scrollable > 0 ? (window.scrollY / scrollable) * 100 : 0;
+          (progressBar as HTMLElement).style.width = Math.min(100, pct) + '%';
+        }
+        window.addEventListener('scroll', updateProgress, { passive: true });
+        updateProgress();
+      }
+    </script>
+  </body>
+</html>

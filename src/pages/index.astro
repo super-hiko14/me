@@ -1,0 +1,104 @@
+---
+const postModules = import.meta.glob('./blog/*.md', { eager: true });
+
+const posts = Object.entries(postModules)
+  .map(([filepath, mod]: [string, any]) => {
+    const slug = filepath.replace(/^\.\/blog\//, '').replace(/\.md$/, '');
+    return {
+      url: `/blog/${slug}/`,
+      title: mod.frontmatter?.title ?? slug,
+      date: mod.frontmatter?.date ?? '',
+    };
+  })
+  .sort((a, b) => (a.date > b.date ? -1 : 1));
+
+const latestPost = posts[0];
+---
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Super Hiko14.me</title>
+  <meta name="description" content="Super Hiko14のパーソナルサイトです。">
+  <link rel="icon" href="https://super-hiko14.me/favicon.ico">
+  <link rel="icon" type="image/png" href="https://super-hiko14.me/favicon.png">
+  <link rel="stylesheet" href="https://super-hiko14.com/main.css">
+  <script src="https://super-hiko14.com/main.js"></script>
+  <link rel="canonical" href="https://super-hiko14.com/">
+</head>
+
+<body>
+  <nav class="site-nav" aria-label="サイトナビゲーション">
+    <button class="site-nav-toggle" aria-label="メニューを開く" aria-expanded="false">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+    <div class="site-nav-drawer" aria-hidden="true">
+      <ul></ul>
+    </div>
+  </nav>
+
+  <main class="container">
+    <div class="box">
+      <p class="page-eyebrow">super-hiko14.me</p>
+      <h1 class="title">思ったことと、日々のこと</h1>
+      <p class="sub-title">Home</p>
+      <p class="description">
+        Super Hiko14の個人サイトです。<br>
+        真面目に考えたことは<a href="blog/">ブログ</a>に、<br>
+        どうでもいい日々のことは<a href="diary/">日記</a>にだらだら書いてます。
+      </p>
+
+      <div class="tool-list">
+        <a href="blog/" class="tool-item">
+          <div class="tool-item-inner">
+            <div class="tool-item-title">Blog</div>
+            <p class="tool-item-description">
+              {latestPost ? `最新: ${latestPost.title}` : '多分不定期更新'}
+            </p>
+          </div>
+          <span class="tool-item-arrow">→</span>
+        </a>
+        <a href="diary/" class="tool-item">
+          <div class="tool-item-inner">
+            <div class="tool-item-title">Diary</div>
+            <p class="tool-item-description">365日一行日記</p>
+          </div>
+          <span class="tool-item-arrow">→</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="footer">
+        <div class="footer-top">
+          <nav class="footer-nav" aria-label="フッターナビゲーション">
+            <div class="footer-nav-group">
+              <span class="footer-nav-label">法的情報</span>
+              <a href="https://super-hiko14.com/terms/">利用規約</a>
+              <a href="https://super-hiko14.com/privacypolicy">プライバシーポリシー</a>
+            </div>
+          </nav>
+          <div class="footer-controls">
+            <button class="theme-toggle" aria-label="テーマ切り替え">
+              <img src="https://super-hiko14.com/sozai/images/moon.webp" alt="ダークモード" class="theme-icon-light">
+              <img src="https://super-hiko14.com/sozai/images/sun.webp" alt="ライトモード" class="theme-icon-dark">
+            </button>
+            <button class="scroll-to-top" aria-label="トップへ戻る">
+              <img src="https://super-hiko14.com/sozai/images/top_light.webp" alt="トップへ" class="scroll-icon-light">
+              <img src="https://super-hiko14.com/sozai/images/top_dark.webp" alt="トップへ" class="scroll-icon-dark">
+            </button>
+          </div>
+        </div>
+        <div class="footer-credit" aria-label="Created by Super Hiko14">
+          <div class="footer-credit-label">Created by</div>
+          <div class="footer-credit-main">Super Hiko14<span class="footer-credit-dot">.</span></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
