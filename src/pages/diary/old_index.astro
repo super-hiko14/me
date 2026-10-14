@@ -1,0 +1,407 @@
+---
+import diaryData from '../../data/diary-entries.json';
+
+const monthGroups = diaryData.months;
+---
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diary — Super Hiko14.me</title>
+  <meta name="description" content="一行日記。">
+  <link rel="icon" href="https://super-hiko14.me/favicon.ico">
+  <link rel="icon" type="image/png" href="https://super-hiko14.me/favicon.png">
+  <link rel="stylesheet" href="/main.css">
+  <script src="https://super-hiko14.com/main.js"></script>
+</head>
+
+<body class="diary-page">
+
+  <main class="container diary-container">
+    <div class="box diary-header-box">
+      <a href="https://super-hiko14.me/" class="back-home-link" aria-label="トップへ戻る">
+        <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none">
+          <path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        トップへ戻る
+      </a>
+      <p class="page-eyebrow">super-hiko14.me / diary</p>
+      <p class="sub-title">365日だけ綴られる— / Written only for 365 days—</p>
+      <h1 class="title">365日一行日記</h1>
+      <p class="sub-title">Diary</p>
+    </div>
+    
+    <div class="box diary-entries-box">
+      {monthGroups.map((month) => (
+        <div class="diary-month-group">
+          <div class="diary-month-label">{month.label}</div>
+          <ul class="diary-list">
+            {month.entries.map((entry) => (
+              <li class="diary-entry">
+                <span class="diary-date">{entry.date}</span>
+                <span class="diary-text" set:html={entry.text} />
+                {entry.images && entry.images.length > 0 && (
+                  <>
+                    <button class="diary-media-toggle" type="button" aria-label="この日の画像を開く" aria-expanded="false">
+                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d="M6 9l6 6 6-6"></path>
+                      </svg>
+                    </button>
+                    <div class="diary-media-panel" hidden>
+                      {entry.images.map((img, i) => (
+                        <img src={img.src} alt={img.alt} loading="lazy" decoding="async" role="button" tabindex={i} />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+
+  </main>
+
+  <!-- Lightbox Modal -->
+  <div class="diary-lightbox" id="diaryLightbox" hidden>
+    <div class="diary-lightbox-overlay"></div>
+    <div class="diary-lightbox-content">
+      <button class="diary-lightbox-close" aria-label="閉じる" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M18 6L6 18M6 6l12 12"></path>
+        </svg>
+      </button>
+      <img class="diary-lightbox-image" src="" alt="" decoding="async">
+      <div class="diary-lightbox-nav">
+        <button class="diary-lightbox-prev" aria-label="前の画像" type="button" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M15 18l-6-6 6-6"></path>
+          </svg>
+        </button>
+        <span class="diary-lightbox-counter"></span>
+        <button class="diary-lightbox-next" aria-label="次の画像" type="button" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M9 18l6-6-6-6"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const mediaToggles = document.querySelectorAll('.diary-media-toggle');
+      const lightbox = document.getElementById('diaryLightbox');
+      const lightboxImage = lightbox.querySelector('.diary-lightbox-image');
+      const lightboxCounter = lightbox.querySelector('.diary-lightbox-counter');
+      const lightboxPrev = lightbox.querySelector('.diary-lightbox-prev');
+      const lightboxNext = lightbox.querySelector('.diary-lightbox-next');
+      const lightboxClose = lightbox.querySelector('.diary-lightbox-close');
+      const lightboxOverlay = lightbox.querySelector('.diary-lightbox-overlay');
+
+      const DRAG_DISTANCE_X = 64;
+      const DRAG_DISTANCE_Y = 96;
+      const DRAG_AXIS_GAP = 12;
+      const DRAG_FADE_X = 350;
+      const DRAG_FADE_Y = 300;
+      const SWIPE_EXIT_MS = 210;
+      const SWIPE_ENTER_MS = 260;
+      const MOMENTUM_MULTIPLIER_X = 140;
+      const MOMENTUM_MULTIPLIER_Y = 170;
+
+      let currentImages = [];
+      let currentIndex = 0;
+      let dragState = null;
+      let isAnimating = false;
+
+      const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+
+      const goPrev = () => {
+        animateHorizontalSwitch(-1, { startDeltaX: 0, velocityX: 0 });
+      };
+
+      const goNext = () => {
+        animateHorizontalSwitch(1, { startDeltaX: 0, velocityX: 0 });
+      };
+
+      const clearMotionStyles = () => {
+        lightboxImage.style.transition = '';
+        lightboxImage.style.transform = '';
+        lightboxImage.style.opacity = '';
+        lightboxOverlay.style.transition = '';
+        lightboxOverlay.style.opacity = '';
+      };
+
+      const resetDragVisual = () => {
+        lightboxImage.classList.remove('is-dragging');
+        clearMotionStyles();
+      };
+
+      const animateSnapBack = () => {
+        lightboxImage.classList.remove('is-dragging');
+        lightboxImage.style.transition = 'transform 260ms cubic-bezier(0.22, 1, 0.36, 1)';
+        lightboxOverlay.style.transition = 'opacity 220ms ease';
+        lightboxImage.style.transform = 'translate3d(0, 0, 0)';
+        lightboxOverlay.style.opacity = '0.9';
+        window.setTimeout(() => {
+          clearMotionStyles();
+        }, SWIPE_ENTER_MS + 30);
+      };
+
+      const animateHorizontalSwitch = (direction, motion = {}) => {
+        if (isAnimating || lightbox.hidden) {
+          return;
+        }
+
+        const targetIndex = currentIndex + direction;
+        if (targetIndex < 0 || targetIndex >= currentImages.length) {
+          animateSnapBack();
+          return;
+        }
+
+        isAnimating = true;
+        lightboxImage.classList.remove('is-dragging');
+
+        const startDeltaX = Number(motion.startDeltaX || 0);
+        const velocityX = Number(motion.velocityX || 0);
+        const imageWidth = Math.max(220, lightboxImage.getBoundingClientRect().width || 220);
+        const exitX = -direction * Math.round(imageWidth * 0.72);
+        const enterX = direction * Math.round(imageWidth * 0.42);
+        const remainDistance = Math.abs(exitX - startDeltaX);
+        const exitMs = clamp(Math.round(120 + remainDistance * 0.28 - Math.abs(velocityX) * 90), 110, 250);
+
+        lightboxImage.style.transition = 'none';
+        lightboxImage.style.transform = 'translate3d(' + startDeltaX + 'px, 0, 0)';
+        void lightboxImage.offsetWidth;
+
+        lightboxImage.style.transition = 'transform ' + exitMs + 'ms cubic-bezier(0.22, 1, 0.36, 1), opacity ' + exitMs + 'ms ease';
+        lightboxOverlay.style.transition = 'opacity ' + exitMs + 'ms ease';
+        lightboxImage.style.transform = 'translate3d(' + exitX + 'px, 0, 0)';
+        lightboxImage.style.opacity = '0.78';
+        lightboxOverlay.style.opacity = '0.62';
+
+        window.setTimeout(() => {
+          currentIndex = targetIndex;
+          showImage();
+
+          lightboxImage.style.transition = 'none';
+          lightboxImage.style.transform = 'translate3d(' + enterX + 'px, 0, 0)';
+          lightboxOverlay.style.opacity = '0.62';
+
+          // Force style flush, then animate the new image into center.
+          void lightboxImage.offsetWidth;
+
+          lightboxImage.style.transition = 'transform ' + SWIPE_ENTER_MS + 'ms cubic-bezier(0.22, 1, 0.36, 1)';
+          lightboxOverlay.style.transition = 'opacity ' + SWIPE_ENTER_MS + 'ms ease';
+          lightboxImage.style.transform = 'translate3d(0, 0, 0)';
+          lightboxImage.style.opacity = '1';
+          lightboxOverlay.style.opacity = '0.9';
+
+          window.setTimeout(() => {
+            clearMotionStyles();
+            isAnimating = false;
+          }, SWIPE_ENTER_MS + 30);
+        }, exitMs);
+      };
+
+      const animateCloseBySwipe = (motion = {}) => {
+        if (isAnimating || lightbox.hidden) {
+          return;
+        }
+
+        isAnimating = true;
+        lightboxImage.classList.remove('is-dragging');
+        const startDeltaY = Number(motion.startDeltaY || 0);
+        const velocityY = Number(motion.velocityY || 0);
+        const exitY = Math.max(140, startDeltaY + 140);
+        const remainDistance = Math.abs(exitY - startDeltaY);
+        const closeMs = clamp(Math.round(130 + remainDistance * 0.45 - Math.max(0, velocityY) * 100), 120, 240);
+
+        lightboxImage.style.transition = 'none';
+        lightboxImage.style.transform = 'translate3d(0, ' + startDeltaY + 'px, 0)';
+        void lightboxImage.offsetWidth;
+
+        lightboxImage.style.transition = 'transform ' + closeMs + 'ms cubic-bezier(0.22, 1, 0.36, 1), opacity ' + closeMs + 'ms ease';
+        lightboxOverlay.style.transition = 'opacity ' + closeMs + 'ms ease';
+        lightboxImage.style.transform = 'translate3d(0, ' + exitY + 'px, 0)';
+        lightboxImage.style.opacity = '0';
+        lightboxOverlay.style.opacity = '0';
+
+        window.setTimeout(() => {
+          clearMotionStyles();
+          closeLightbox();
+          isAnimating = false;
+        }, closeMs + 5);
+      };
+
+      const openLightbox = (imgElement) => {
+        const panel = imgElement.closest('.diary-media-panel');
+        currentImages = Array.from(panel.querySelectorAll('img'));
+        currentIndex = currentImages.indexOf(imgElement);
+        isAnimating = false;
+
+        lightbox.hidden = false;
+        showImage();
+        document.body.style.overflow = 'hidden';
+      };
+
+      const closeLightbox = () => {
+        resetDragVisual();
+        dragState = null;
+        isAnimating = false;
+        lightbox.hidden = true;
+        document.body.style.overflow = '';
+      };
+
+      const showImage = () => {
+        const img = currentImages[currentIndex];
+        lightboxImage.src = img.src;
+        lightboxImage.alt = img.alt;
+        lightboxCounter.textContent = (currentIndex + 1) + ' / ' + currentImages.length;
+        lightboxPrev.hidden = currentImages.length <= 1;
+        lightboxNext.hidden = currentImages.length <= 1;
+      };
+
+      const lockDragAxis = (deltaX, deltaY) => {
+        const absX = Math.abs(deltaX);
+        const absY = Math.abs(deltaY);
+        if (absX < DRAG_AXIS_GAP && absY < DRAG_AXIS_GAP) {
+          return null;
+        }
+        return absX >= absY ? 'x' : 'y';
+      };
+
+      const handleDragStart = (e) => {
+        if (lightbox.hidden) {
+          return;
+        }
+        dragState = {
+          pointerId: e.pointerId,
+          startX: e.clientX,
+          startY: e.clientY,
+          axis: null,
+          lastX: e.clientX,
+          lastY: e.clientY,
+          lastTime: e.timeStamp,
+          velocityX: 0,
+          velocityY: 0
+        };
+        lightboxImage.classList.add('is-dragging');
+        lightboxImage.setPointerCapture(e.pointerId);
+      };
+
+      const handleDragMove = (e) => {
+        if (!dragState || dragState.pointerId !== e.pointerId) {
+          return;
+        }
+
+        const dt = Math.max(1, e.timeStamp - dragState.lastTime);
+        const velocityX = (e.clientX - dragState.lastX) / dt;
+        const velocityY = (e.clientY - dragState.lastY) / dt;
+        dragState.velocityX = dragState.velocityX * 0.65 + velocityX * 0.35;
+        dragState.velocityY = dragState.velocityY * 0.65 + velocityY * 0.35;
+        dragState.lastX = e.clientX;
+        dragState.lastY = e.clientY;
+        dragState.lastTime = e.timeStamp;
+
+        const deltaX = e.clientX - dragState.startX;
+        const deltaY = e.clientY - dragState.startY;
+
+        if (!dragState.axis) {
+          dragState.axis = lockDragAxis(deltaX, deltaY);
+        }
+
+        if (!dragState.axis) {
+          return;
+        }
+
+        if (dragState.axis === 'x') {
+          lightboxImage.style.transform = 'translate3d(' + deltaX + 'px, 0, 0)';
+          lightboxOverlay.style.opacity = String(Math.max(0.55, 0.9 - Math.min(Math.abs(deltaX) / DRAG_FADE_X, 0.3)));
+        } else {
+          lightboxImage.style.transform = 'translate3d(0, ' + deltaY + 'px, 0)';
+          lightboxOverlay.style.opacity = String(Math.max(0.45, 0.9 - Math.min(Math.abs(deltaY) / DRAG_FADE_Y, 0.45)));
+        }
+      };
+
+      const handleDragEnd = (e) => {
+        if (!dragState || dragState.pointerId !== e.pointerId) {
+          return;
+        }
+
+        const deltaX = e.clientX - dragState.startX;
+        const deltaY = e.clientY - dragState.startY;
+        const axis = dragState.axis;
+        const velocityX = dragState.velocityX;
+        const velocityY = dragState.velocityY;
+        const projectedX = deltaX + velocityX * MOMENTUM_MULTIPLIER_X;
+        const projectedY = deltaY + Math.max(0, velocityY) * MOMENTUM_MULTIPLIER_Y;
+        dragState = null;
+
+        if (axis === 'x' && Math.abs(projectedX) >= DRAG_DISTANCE_X) {
+          animateHorizontalSwitch(projectedX > 0 ? -1 : 1, { startDeltaX: deltaX, velocityX });
+          return;
+        }
+
+        if (axis === 'y' && projectedY >= DRAG_DISTANCE_Y) {
+          animateCloseBySwipe({ startDeltaY: deltaY, velocityY });
+          return;
+        }
+
+        animateSnapBack();
+      };
+
+      // Panel image click
+      document.addEventListener('click', (e) => {
+        if (e.target.closest('.diary-media-panel img')) {
+          openLightbox(e.target);
+        }
+      });
+
+      // Prevent native image drag ghost from interfering with swipe
+      document.querySelectorAll('.diary-media-panel img, .diary-lightbox-image').forEach((img) => {
+        img.setAttribute('draggable', 'false');
+        img.addEventListener('dragstart', (e) => e.preventDefault());
+      });
+
+      lightboxImage.addEventListener('pointerdown', handleDragStart);
+      lightboxImage.addEventListener('pointermove', handleDragMove);
+      lightboxImage.addEventListener('pointerup', handleDragEnd);
+      lightboxImage.addEventListener('pointercancel', handleDragEnd);
+
+      // Keyboard
+      document.addEventListener('keydown', (e) => {
+        if (lightbox.hidden) return;
+        if (e.key === 'Escape') closeLightbox();
+        if (e.key === 'ArrowLeft') goPrev();
+        if (e.key === 'ArrowRight') goNext();
+      });
+
+      lightboxClose.addEventListener('click', closeLightbox);
+      lightboxOverlay.addEventListener('click', closeLightbox);
+      lightboxPrev.addEventListener('click', goPrev);
+      lightboxNext.addEventListener('click', goNext);
+
+      // Toggle panels
+      mediaToggles.forEach((toggle) => {
+        const panel = toggle.nextElementSibling;
+        if (!panel || !panel.classList.contains('diary-media-panel')) {
+          return;
+        }
+
+        toggle.addEventListener('click', () => {
+          const isExpanded = toggle.getAttribute('aria-expanded') === 'true';
+          toggle.setAttribute('aria-expanded', String(!isExpanded));
+          toggle.classList.toggle('is-open', !isExpanded);
+          panel.hidden = isExpanded;
+          panel.classList.toggle('is-open', !isExpanded);
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
+
