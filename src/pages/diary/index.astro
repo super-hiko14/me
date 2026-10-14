@@ -37,16 +37,11 @@ const monthGroups = diaryData.months;
                 <span class="diary-date">{entry.date}</span>
                 <span class="diary-text" set:html={entry.text} />
                 {entry.images && entry.images.length > 0 && (
-                  <>
-                    <button class="diary-media-toggle" type="button" aria-label="この日の画像を開く" aria-expanded="false">
-                      <span class="diary-media-plus" aria-hidden="true">+</span>
-                    </button>
-                    <div class="diary-media-panel" hidden>
-                      {entry.images.map((img, i) => (
-                        <img src={img.src} alt={img.alt} loading="lazy" decoding="async" role="button" tabindex={i} />
-                      ))}
-                    </div>
-                  </>
+                  <div class="diary-media-panel">
+                    {entry.images.map((img) => (
+                      <img src={img.src} alt={img.alt ?? '日記の画像'} loading="lazy" decoding="async" role="button" tabindex="0" />
+                    ))}
+                  </div>
                 )}
               </li>
             ))}
@@ -75,4 +70,3 @@ const monthGroups = diaryData.months;
 
 </body>
 </html>
-

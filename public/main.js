@@ -4,7 +4,7 @@
    ここでやること
      1. 絵（.home-sprite）を押したとき、0.1秒でぴょんと跳ねる
      2. ブログ一覧 … 検索とカテゴリの絞り込み（?category=○○ にも対応）
-     3. 日記       … 画像の開閉・ライトボックス・「今日」の目印
+     3. 日記       … 画像のライトボックス・「今日」の目印
      4. ブログ記事 … 見出しの # リンク・目次・コピーボタン・読書バー
 
    ページに要素があるときだけ動くので、どのページに読み込んでも大丈夫です。
@@ -103,9 +103,8 @@
     });
   }
 
-  // 画像の開閉とライトボックス（スワイプ・ドラッグ・矢印キー対応）
+  // 画像をタップして大きく見る（ライトボックス：スワイプ・ドラッグ・矢印キー対応）
   function initDiaryMedia() {
-    const mediaToggles = document.querySelectorAll('.diary-media-toggle');
     const lightbox = document.getElementById('diaryLightbox');
     if (!lightbox) return;
     const lightboxImage = lightbox.querySelector('.diary-lightbox-image');
@@ -374,6 +373,14 @@
       }
     });
 
+    // キーボードでも開ける（Enter / Space）
+    document.addEventListener('keydown', (e) => {
+      if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.diary-media-panel img')) {
+        e.preventDefault();
+        openLightbox(e.target);
+      }
+    });
+
     // Prevent native image drag ghost from interfering with swipe
     document.querySelectorAll('.diary-media-panel img, .diary-lightbox-image').forEach((img) => {
       img.setAttribute('draggable', 'false');
@@ -397,22 +404,6 @@
     lightboxOverlay.addEventListener('click', closeLightbox);
     lightboxPrev.addEventListener('click', goPrev);
     lightboxNext.addEventListener('click', goNext);
-
-    // Toggle panels
-    mediaToggles.forEach((toggle) => {
-      const panel = toggle.nextElementSibling;
-      if (!panel || !panel.classList.contains('diary-media-panel')) {
-        return;
-      }
-
-      toggle.addEventListener('click', () => {
-        const isExpanded = toggle.getAttribute('aria-expanded') === 'true';
-        toggle.setAttribute('aria-expanded', String(!isExpanded));
-        toggle.classList.toggle('is-open', !isExpanded);
-        panel.hidden = isExpanded;
-        panel.classList.toggle('is-open', !isExpanded);
-      });
-    });
   }
 
   /* ---------- 4. ブログ記事 ---------- */
@@ -443,8 +434,10 @@
         const url = `${location.origin}${location.pathname}#${h.id}`;
         try {
           await navigator.clipboard.writeText(url);
+          anchor.innerHTML = ICON_CHECK;
           anchor.classList.add('is-copied');
           setTimeout(() => {
+            anchor.innerHTML = ICON_HASH;
             anchor.classList.remove('is-copied');
           }, 1500);
         } catch {}

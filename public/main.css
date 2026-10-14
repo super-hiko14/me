@@ -78,16 +78,16 @@ a{color:inherit;text-decoration-line:underline;text-decoration-thickness:2px;tex
    ========================================================================== */
 :where(.tool-item,.blog-item,.blog-sibling,.nav-button,.filter-btn,.search-box,
        .toc-mobile-btn,.toc-panel-close,
-       .diary-media-toggle,.diary-lightbox-close,.diary-lightbox-prev,.diary-lightbox-next,
+       .diary-lightbox-close,.diary-lightbox-prev,.diary-lightbox-next,
        .diary-date,.code-copy-btn){position:relative}
 
 .tool-item,.blog-item,.blog-sibling,.nav-button,.toc-mobile-btn{--p:4px}
 .filter-btn,.search-box,.toc-panel-close,
-.diary-media-toggle,.diary-lightbox-close,.diary-lightbox-prev,.diary-lightbox-next{--p:3px}
+.diary-lightbox-close,.diary-lightbox-prev,.diary-lightbox-next{--p:3px}
 
 .tool-item,.blog-item,.blog-sibling,.nav-button,.filter-btn,.search-box,
 .toc-mobile-btn,.toc-panel-close,
-.diary-media-toggle,.diary-lightbox-close,.diary-lightbox-prev,.diary-lightbox-next{
+.diary-lightbox-close,.diary-lightbox-prev,.diary-lightbox-next{
   isolation:isolate;
   background:var(--px-line,var(--line));
   clip-path:polygon(0 calc(var(--p)*3),calc(var(--p)*1) calc(var(--p)*3),calc(var(--p)*1) calc(var(--p)*2),calc(var(--p)*2) calc(var(--p)*2),calc(var(--p)*2) calc(var(--p)*1),calc(var(--p)*3) calc(var(--p)*1),calc(var(--p)*3) 0,calc(100% - var(--p)*3) 0,calc(100% - var(--p)*3) calc(var(--p)*1),calc(100% - var(--p)*2) calc(var(--p)*1),calc(100% - var(--p)*2) calc(var(--p)*2),calc(100% - var(--p)*1) calc(var(--p)*2),calc(100% - var(--p)*1) calc(var(--p)*3),100% calc(var(--p)*3),100% calc(100% - var(--p)*3),calc(100% - var(--p)*1) calc(100% - var(--p)*3),calc(100% - var(--p)*1) calc(100% - var(--p)*2),calc(100% - var(--p)*2) calc(100% - var(--p)*2),calc(100% - var(--p)*2) calc(100% - var(--p)*1),calc(100% - var(--p)*3) calc(100% - var(--p)*1),calc(100% - var(--p)*3) 100%,calc(var(--p)*3) 100%,calc(var(--p)*3) calc(100% - var(--p)*1),calc(var(--p)*2) calc(100% - var(--p)*1),calc(var(--p)*2) calc(100% - var(--p)*2),calc(var(--p)*1) calc(100% - var(--p)*2),calc(var(--p)*1) calc(100% - var(--p)*3),0 calc(100% - var(--p)*3));
@@ -96,7 +96,7 @@ a{color:inherit;text-decoration-line:underline;text-decoration-thickness:2px;tex
 }
 .tool-item::before,.blog-item::before,.blog-sibling::before,.nav-button::before,.filter-btn::before,
 .search-box::before,
-.toc-mobile-btn::before,.toc-panel-close::before,.diary-media-toggle::before,
+.toc-mobile-btn::before,.toc-panel-close::before,
 .diary-lightbox-close::before,.diary-lightbox-prev::before,.diary-lightbox-next::before{
   content:"";position:absolute;inset:0;z-index:-1;
   background:var(--px-fill,var(--paper));
@@ -111,10 +111,10 @@ a{color:inherit;text-decoration-line:underline;text-decoration-thickness:2px;tex
 }
 /* ホバーで枠が濃く、キーボードで色が変わる(赤にはならない) */
 :is(.tool-item,.blog-item,.blog-sibling,.nav-button,.filter-btn,
-    .toc-mobile-btn,.toc-panel-close,.diary-media-toggle,
+    .toc-mobile-btn,.toc-panel-close,
     .diary-lightbox-close,.diary-lightbox-prev,.diary-lightbox-next):hover{--px-line:var(--ink);--px-fill:var(--hover)}
 :is(.tool-item,.blog-item,.blog-sibling,.nav-button,.filter-btn,
-    .toc-mobile-btn,.toc-panel-close,.diary-media-toggle,
+    .toc-mobile-btn,.toc-panel-close,
     .diary-lightbox-close,.diary-lightbox-prev,.diary-lightbox-next):focus-visible{--px-line:var(--ink);--px-fill:var(--mark);outline:none}
 .search-box:focus-within{--px-line:var(--ink);--px-fill:var(--mark)}
 
@@ -349,19 +349,20 @@ a{color:inherit;text-decoration-line:underline;text-decoration-thickness:2px;tex
 .diary-month-group + .diary-month-group{margin-top:42px}
 .diary-month-label{font-size:var(--fs-l);line-height:1.5;margin-bottom:10px}
 .diary-list{list-style:none}
-.diary-entry{display:grid;grid-template-columns:auto minmax(0,1fr) auto;column-gap:14px;align-items:start;padding:8px 0}
+.diary-entry{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:14px;align-items:start;padding:8px 0}
 .diary-today .diary-date{background:var(--ink)}
 .diary-today .diary-text::after{content:"‹ 今日";margin-left:.9em;color:var(--line)}
 .diary-date{min-width:2.6em;margin-top:.35em;padding:0 8px;text-align:center;line-height:1.6}
 .diary-text{min-width:0;line-height:1.9}
 .diary-text a{word-break:break-all}
-.diary-media-toggle{width:34px;height:34px;display:grid;place-items:center}
-.diary-media-plus{display:block;font-size:var(--fs-l);line-height:1;transition:transform .2s steps(3,end)}
-.diary-media-toggle:is([aria-expanded="true"],.is-open) .diary-media-plus{transform:rotate(45deg)}
-.diary-media-panel{grid-column:1 / -1;display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px;margin:10px 0 6px}
-.diary-media-panel.is-open{animation:pop .4s var(--fade) backwards}
+/* 画像：最初から見える。文章の下に、小さなサムネイルで並べる */
+.diary-media-panel{
+  --thumb:clamp(88px,28vw,128px);
+  grid-column:2;display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 4px;
+}
 .diary-media-panel img{
-  display:block;width:100%;aspect-ratio:1;object-fit:cover;border:3px solid var(--line);background:var(--hover);
+  display:block;flex:none;width:var(--thumb);height:var(--thumb);object-fit:cover;
+  border:3px solid var(--line);background:var(--hover);   /* 読み込み中も同じ大きさの枠が見えるので、ガタつかない */
   cursor:zoom-in;transition:border-color .15s ease;
 }
 .diary-media-panel img:hover,.diary-media-panel img:focus-visible{border-color:var(--ink)}
